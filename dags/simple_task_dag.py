@@ -1,4 +1,5 @@
 from datetime import timedelta, datetime, timezone
+from time import sleep
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
