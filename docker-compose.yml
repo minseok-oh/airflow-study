@@ -1,0 +1,70 @@
+version: "3.8"
+services:
+  postgres:
+    image: postgres:13
+    container_name: airflow_postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:6
+    container_name: airflow_redis
+    ports:
+      - "6379:6379"
+
+  airflow-webserver:
+    image: apache/airflow:2.10.5
+    container_name: airflow_webserver
+    environment:
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=redis://redis:6379/0
+      - AIRFLOW__WEBSERVER__SECRET_KEY=some_random_secret_key
+    volumes:
+      - ./dags:/opt/airflow/dags
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+    command: bash -c "airflow db init && airflow webserver"
+
+  airflow-scheduler:
+    image: apache/airflow:2.10.5
+    container_name: airflow_scheduler
+    environment:
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./dags:/opt/airflow/dags
+    depends_on:
+      - postgres
+      - redis
+    command: scheduler
+
+  airflow-worker:
+    image: apache/airflow:2.10.5
+    container_name: airflow_worker
+    environment:
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./dags:/opt/airflow/dags
+    depends_on:
+      - postgres
+      - redis
+    command: celery worker
+
+volumes:
+  postgres_data:
